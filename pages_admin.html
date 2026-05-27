@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - E-Lost and Found</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-search"></i>
+                <span>E-Lost & Found</span>
+            </div>
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="pages_admin.html">Admin</a></li>
+                <li><a href="#" class="btn-register" onclick="toggleDarkMode(); return false;"><i class="fas fa-moon" id="darkModeToggle" title="Toggle Dark Mode"></i> Theme</a></li>
+                <li><a href="#" class="btn-register" onclick="logout()">Logout</a></li>
+            </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Admin Header -->
+    <div class="admin-header">
+        <div class="container" style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+            <h1><i class="fas fa-shield-alt"></i> Admin Dashboard</h1>
+            <div>
+                <span id="adminName" style="margin-right: 20px;">Admin</span>
+                <a href="index.html" class="btn btn-secondary">Back to Home</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" style="padding: 40px 0;">
+        <!-- Tab Navigation -->
+        <div class="admin-tabs">
+            <button class="admin-tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="admin-tab-btn" onclick="switchTab('users')">Users</button>
+            <button class="admin-tab-btn" onclick="switchTab('items')">All Items</button>
+            <button class="admin-tab-btn" onclick="switchTab('claims')">Claims</button>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div class="tab-content active" id="dashboard">
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <i class="fas fa-users"></i>
+                    <h3 id="totalUsers">0</h3>
+                    <p>Total Users</p>
+                </div>
+                <div class="stat-card success">
+                    <i class="fas fa-frown"></i>
+                    <h3 id="totalLostItems">0</h3>
+                    <p>Lost Items</p>
+                </div>
+                <div class="stat-card warning">
+                    <i class="fas fa-smile"></i>
+                    <h3 id="totalFoundItems">0</h3>
+                    <p>Found Items</p>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-gavel"></i>
+                    <h3 id="totalClaims">0</h3>
+                    <p>Claims</p>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 30px;">
+                <h2>System Statistics</h2>
+                <p id="systemStats">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div class="tab-content" id="users">
+            <div class="card">
+                <h2>User Management</h2>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTable">
+                            <tr><td colspan="5" style="text-align: center; color: #999;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Tab -->
+        <div class="tab-content" id="items">
+            <div class="card">
+                <h2>All Items</h2>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item Name</th>
+                                <th>Type</th>
+                                <th>Category</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTable">
+                            <tr><td colspan="7" style="text-align: center; color: #999;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Claims Tab -->
+        <div class="tab-content" id="claims">
+            <div class="card">
+                <h2>Claims Management</h2>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Claimant</th>
+                                <th>Proof</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="claimsTable">
+                            <tr><td colspan="6" style="text-align: center; color: #999;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js_utils.js"></script>
+    <script type="module" src="js_auth.js"></script>
+    <script>
+        // Wait for modules to load before calling checkAuth
+        function ensureCheckAuth() {
+            if (typeof checkAuth === 'function') {
+                checkAuth();
+            } else {
+                setTimeout(ensureCheckAuth, 50);
+            }
+        }
+        ensureCheckAuth();
+
+        async function loadAdminPanel() {
+            const user = getCurrentUser();
+            if (!user || user.role !== 'admin') {
+                showAlert('Access Denied', 'Only administrators can access this panel');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.getElementById('adminName').textContent = `Welcome, ${user.fullName}`;
+
+            const users = await getRecords(DB.users);
+            const lostItems = await getRecords(DB.lostItems);
+            const foundItems = await getRecords(DB.foundItems);
+            const claims = await getRecords(DB.claims);
+
+            // Update dashboard stats
+            document.getElementById('totalUsers').textContent = users.length;
+            document.getElementById('totalLostItems').textContent = lostItems.length;
+            document.getElementById('totalFoundItems').textContent = foundItems.length;
+            document.getElementById('totalClaims').textContent = claims.length;
+
+            document.getElementById('systemStats').innerHTML = `
+                <p>Total Registered Users: <strong>${users.length}</strong></p>
+                <p>Total Lost Item Reports: <strong>${lostItems.length}</strong></p>
+                <p>Total Found Item Reports: <strong>${foundItems.length}</strong></p>
+                <p>Pending Claims: <strong>${claims.filter(c => c.status === 'pending').length}</strong></p>
+                <p>Completed Claims: <strong>${claims.filter(c => c.status === 'completed').length}</strong></p>
+            `;
+
+            // Load users table
+            document.getElementById('usersTable').innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.fullName}</td>
+                    <td>${u.email}</td>
+                    <td>${u.phone}</td>
+                    <td>${formatDate(u.createdAt)}</td>
+                    <td>
+                        <button onclick="deleteUser('${u.id}')" class="btn btn-small btn-danger">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Load items table
+            const allItems = [
+                ...lostItems.map(i => ({ ...i, type: 'Lost' })),
+                ...foundItems.map(i => ({ ...i, type: 'Found' }))
+            ];
+            document.getElementById('itemsTable').innerHTML = allItems.map(i => `
+                <tr>
+                    <td>${i.itemName}</td>
+                    <td>${i.type}</td>
+                    <td>${i.category}</td>
+                    <td>${formatLocation(i.locationLost || i.locationFound)}</td>
+                    <td><span class="status-badge ${i.status}">${i.status}</span></td>
+                    <td>${formatDate(i.createdAt)}</td>
+                    <td>
+                        <button onclick="deleteItem('${i.id}', '${i.type.toLowerCase()}')" class="btn btn-small btn-danger">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Load claims table
+            document.getElementById('claimsTable').innerHTML = claims.map(c => {
+                const item = findById(DB.lostItems, c.itemId) || findById(DB.foundItems, c.itemId);
+                const claimant = users.find(u => u.id === c.claimantId);
+                return `
+                    <tr>
+                        <td>${item ? item.itemName : 'Unknown'}</td>
+                        <td>${claimant ? claimant.fullName : 'Unknown'}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${c.proofDescription}</td>
+                        <td><span class="status-badge ${c.status}">${c.status}</span></td>
+                        <td>${formatDate(c.createdAt)}</td>
+                        <td>
+                            <button onclick="approveClaim('${c.id}')" class="btn btn-small btn-success">Approve</button>
+                            <button onclick="rejectClaim('${c.id}')" class="btn btn-small btn-danger">Reject</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function deleteUser(id) {
+            if (confirm('Are you sure? This will permanently delete the user.')) {
+                deleteRecord(DB.users, id);
+                loadAdminPanel();
+                showToast('User deleted');
+            }
+        }
+
+        function deleteItem(id, type) {
+            if (confirm('Are you sure? This will delete the item.')) {
+                const store = type === 'lost' ? DB.lostItems : DB.foundItems;
+                deleteRecord(store, id);
+                loadAdminPanel();
+                showToast('Item deleted');
+            }
+        }
+
+        function approveClaim(id) {
+            updateRecord(DB.claims, id, { status: 'completed' });
+            loadAdminPanel();
+            showToast('Claim approved');
+        }
+
+        function rejectClaim(id) {
+            if (confirm('Reject this claim?')) {
+                updateRecord(DB.claims, id, { status: 'rejected' });
+                loadAdminPanel();
+                showToast('Claim rejected');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadAdminPanel);
+    </script>
+</body>
+</html>

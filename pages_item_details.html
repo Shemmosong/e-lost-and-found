@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Details - E-Lost and Found</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-search"></i>
+                <span>E-Lost & Found</span>
+            </div>
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="pages_search.html">Search</a></li>
+                <li><a href="pages_lost_item.html">Report Lost</a></li>
+                <li><a href="pages_found_item.html">Report Found</a></li>
+                <li><a href="pages_profile.html" class="btn-login">Profile</a></li>
+                <li><a href="#" class="btn-register" onclick="logout()">Logout</a></li>
+                <li><i class="fas fa-moon" id="darkModeToggle" onclick="toggleDarkMode()" title="Toggle Dark Mode"></i></li>
+            </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding: 40px 0;">
+        <a href="pages_search.html" style="color: #0066cc; text-decoration: none; margin-bottom: 20px; display: inline-block;"><i class="fas fa-arrow-left"></i> Back to Search</a>
+
+        <div id="itemDetails"></div>
+    </div>
+
+    <script type="module" src="js_utils.js"></script>
+    <script>
+        function loadItemDetails() {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+            const type = params.get('type') || 'lost';
+
+            const storeName = type === 'lost' ? DB.lostItems : DB.foundItems;
+            const item = findById(storeName, id);
+
+            if (!item) {
+                document.getElementById('itemDetails').innerHTML = '<p>Item not found.</p>';
+                return;
+            }
+
+            const user = getCurrentUser();
+            const isOwner = user && (user.id === item.ownerId || user.id === item.finderId);
+
+            document.getElementById('itemDetails').innerHTML = `
+                <div class="details-grid">
+                    <div>
+                        <img src="${item.imageURL || 'https://via.placeholder.com/400x400'}" alt="${item.itemName}" class="details-image">
+                    </div>
+                    <div class="details-info">
+                        <h1>${item.itemName}</h1>
+                        <span class="detail-badge ${type}">${type === 'lost' ? '❌ LOST ITEM' : '✓ FOUND ITEM'}</span>
+                        
+                        <div class="details-row">
+                            <span class="details-label"><i class="fas fa-tag"></i> Category:</span>
+                            <span class="details-value">${item.category}</span>
+                        </div>
+
+                        <div class="details-row">
+                            <span class="details-label"><i class="fas fa-align-left"></i> Description:</span>
+                            <span class="details-value">${item.description}</span>
+                        </div>
+
+                        <div class="details-row">
+                            <span class="details-label"><i class="fas fa-map-pin"></i> Location:</span>
+                            <span class="details-value">${formatLocation(item.locationLost || item.locationFound)}</span>
+                        </div>
+
+                        <div class="details-row">
+                            <span class="details-label"><i class="fas fa-calendar"></i> Date:</span>
+                            <span class="details-value">${formatDate(item.dateLost || item.dateFound)}</span>
+                        </div>
+
+                        <div class="details-row">
+                            <span class="details-label"><i class="fas fa-phone"></i> Contact:</span>
+                            <span class="details-value">${item.contactInfo}</span>
+                        </div>
+
+                        <div class="details-row">
+                            <span class="details-label"><i class="fas fa-info-circle"></i> Status:</span>
+                            <span class="details-value"><span class="status-badge ${item.status}">${item.status}</span></span>
+                        </div>
+
+                        <div class="details-actions">
+                            <a href="mailto:${item.contactInfo}" class="btn btn-primary">
+                                <i class="fas fa-envelope"></i> Contact
+                            </a>
+                            ${!isOwner ? `<button onclick="claimItem('${id}', '${type}')" class="btn btn-secondary">
+                                <i class="fas fa-hand-paper"></i> Claim Item
+                            </button>` : `<p style="color: #999;">This is your listing</p>`}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function claimItem(id, type) {
+            const user = getCurrentUser();
+            if (!user) {
+                showAlert('Error', 'Please login to claim an item');
+                return;
+            }
+
+            const claimProof = prompt('Please describe how you can prove this is your item:');
+            if (!claimProof) return;
+
+            const claim = {
+                itemId: id,
+                claimantId: user.id,
+                proofDescription: claimProof,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            };
+
+            addRecord(DB.claims, claim);
+            showToast('Claim submitted! The item owner will review your claim.');
+        }
+
+        document.addEventListener('DOMContentLoaded', loadItemDetails);
+    </script>
+</body>
+</html>

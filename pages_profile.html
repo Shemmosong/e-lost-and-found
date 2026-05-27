@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - E-Lost and Found</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-search"></i>
+                <span>E-Lost & Found</span>
+            </div>
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="pages_search.html">Search</a></li>
+                <li><a href="pages_lost_item.html">Report Lost</a></li>
+                <li><a href="pages_found_item.html">Report Found</a></li>
+                <li><a href="pages_admin.html">Admin</a></li>
+                <li><a href="pages_profile.html" class="btn-login">Profile</a></li>
+                <li><a href="#" class="btn-register" onclick="logout()">Logout</a></li>
+                <li><i class="fas fa-moon" id="darkModeToggle" onclick="toggleDarkMode()" title="Toggle Dark Mode"></i></li>
+            </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Profile Header -->
+    <div class="profile-header">
+        <div class="container">
+            <div id="profileAvatarContainer"></div>
+            <h1 id="profileName">User Profile</h1>
+            <p id="profileEmail">Loading...</p>
+        </div>
+    </div>
+
+    <div class="container" style="padding: 40px 0;">
+        <div class="profile-content">
+            <!-- Sidebar -->
+            <div class="profile-sidebar">
+                <h3><i class="fas fa-user"></i> Personal Information</h3>
+                <div class="profile-info">
+                    <div class="info-field">
+                        <label>Full Name</label>
+                        <strong id="infoFullName">-</strong>
+                    </div>
+                    <div class="info-field">
+                        <label>Email</label>
+                        <strong id="infoEmail">-</strong>
+                    </div>
+                    <div class="info-field">
+                        <label>Phone</label>
+                        <strong id="infoPhone">-</strong>
+                    </div>
+                    <div class="info-field">
+                        <label>Member Since</label>
+                        <strong id="infoJoined">-</strong>
+                    </div>
+                </div>
+                <a href="index.html" class="btn btn-primary btn-block" style="margin-top: 20px;">Back to Home</a>
+            </div>
+
+            <!-- Main Content -->
+            <div>
+                <!-- Statistics -->
+                <div class="dashboard-grid" style="margin-bottom: 30px;">
+                    <div class="stat-card">
+                        <i class="fas fa-frown"></i>
+                        <h3 id="userLostCount">0</h3>
+                        <p>Items Lost</p>
+                    </div>
+                    <div class="stat-card success">
+                        <i class="fas fa-smile"></i>
+                        <h3 id="userFoundCount">0</h3>
+                        <p>Items Found</p>
+                    </div>
+                    <div class="stat-card warning">
+                        <i class="fas fa-handshake"></i>
+                        <h3 id="userRecoveredCount">0</h3>
+                        <p>Items Recovered</p>
+                    </div>
+                </div>
+
+                <!-- Lost Items -->
+                <div class="card">
+                    <h2><i class="fas fa-frown"></i> My Lost Items</h2>
+                    <div class="items-list" id="userLostItems"></div>
+                </div>
+
+                <!-- Found Items -->
+                <div class="card">
+                    <h2><i class="fas fa-smile"></i> My Found Items</h2>
+                    <div class="items-list" id="userFoundItems"></div>
+                </div>
+
+                <!-- Claims -->
+                <div class="card">
+                    <h2><i class="fas fa-gavel"></i> My Claims</h2>
+                    <div id="userClaims"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { checkAuth } from './js_auth.js';
+        import { logout, DB, getRecords, findById, getCurrentUser, formatDate, formatLocation } from './js_utils.js';
+
+        // Bind logout to window for inline onclick handlers
+        window.logout = logout;
+
+        checkAuth();
+
+        async function loadProfile() {
+            const user = getCurrentUser();
+            if (!user) return;
+
+            // Load header
+            document.getElementById('profileName').textContent = user.fullName;
+            document.getElementById('profileEmail').textContent = user.email;
+            document.getElementById('profileAvatarContainer').innerHTML = `
+                <div class="profile-avatar-placeholder">
+                    <i class="fas fa-user"></i>
+                </div>
+            `;
+
+            // Load info
+            document.getElementById('infoFullName').textContent = user.fullName;
+            document.getElementById('infoEmail').textContent = user.email;
+            document.getElementById('infoPhone').textContent = user.phone;
+            document.getElementById('infoJoined').textContent = formatDate(user.createdAt);
+
+            // Load statistics
+            const lostItems = (await getRecords(DB.lostItems)).filter(i => i.ownerId === user.id && i.status !== 'recovered');
+            const foundItems = (await getRecords(DB.foundItems)).filter(i => i.finderId === user.id && i.status !== 'claimed');
+            const claims = (await getRecords(DB.claims)).filter(c => c.claimantId === user.id && c.status === 'completed');
+
+            document.getElementById('userLostCount').textContent = lostItems.length;
+            document.getElementById('userFoundCount').textContent = foundItems.length;
+            document.getElementById('userRecoveredCount').textContent = claims.length;
+
+            // Load items
+            if (lostItems.length === 0) {
+                document.getElementById('userLostItems').innerHTML = '<p style="color: #999;">You haven\'t reported any lost items</p>';
+            } else {
+                document.getElementById('userLostItems').innerHTML = lostItems.map(item => `
+                    <div class="item-card">
+                        <img src="${item.imageURL || 'https://via.placeholder.com/100'}" alt="${item.itemName}" class="item-image">
+                        <div class="item-info">
+                            <h4>${item.itemName}</h4>
+                            <p><i class="fas fa-tag"></i> ${item.category}</p>
+                            <p><i class="fas fa-map-pin"></i> ${formatLocation(item.locationLost)}</p>
+                        </div>
+                        <div class="item-actions">
+                            <a href="pages_item_details.html?id=${item.id}&type=lost" class="btn btn-small btn-primary">View</a>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            if (foundItems.length === 0) {
+                document.getElementById('userFoundItems').innerHTML = '<p style="color: #999;">You haven\'t reported any found items</p>';
+            } else {
+                document.getElementById('userFoundItems').innerHTML = foundItems.map(item => `
+                    <div class="item-card">
+                        <img src="${item.imageURL || 'https://via.placeholder.com/100'}" alt="${item.itemName}" class="item-image">
+                        <div class="item-info">
+                            <h4>${item.itemName}</h4>
+                            <p><i class="fas fa-tag"></i> ${item.category}</p>
+                            <p><i class="fas fa-map-pin"></i> ${formatLocation(item.locationFound)}</p>
+                        </div>
+                        <div class="item-actions">
+                            <a href="pages_item_details.html?id=${item.id}&type=found" class="btn btn-small btn-primary">View</a>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Load claims
+            const userClaims = (await getRecords(DB.claims)).filter(c => c.claimantId === user.id);
+            if (userClaims.length === 0) {
+                document.getElementById('userClaims').innerHTML = '<p style="color: #999;">You haven\'t made any claims yet</p>';
+            } else {
+                const claimsHTML = [];
+                for (const claim of userClaims) {
+                    let item = await findById(DB.lostItems, claim.itemId);
+                    if (!item) {
+                        item = await findById(DB.foundItems, claim.itemId);
+                    }
+                    claimsHTML.push(`<tr><td>${item ? item.itemName : 'Unknown'}</td><td><span class="status-badge ${claim.status}">${claim.status}</span></td><td>${formatDate(claim.createdAt)}</td></tr>`);
+                }
+                document.getElementById('userClaims').innerHTML = '<table><thead><tr><th>Item</th><th>Status</th><th>Date</th></tr></thead><tbody>' + claimsHTML.join('') + '</tbody></table>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => loadProfile());
+    </script>
+</body>
+</html>

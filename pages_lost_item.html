@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Lost Item - E-Lost and Found</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-search"></i>
+                <span>E-Lost & Found</span>
+            </div>
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="pages_search.html">Search</a></li>
+                <li><a href="pages_lost_item.html">Report Lost</a></li>
+                <li><a href="pages_found_item.html">Report Found</a></li>
+                <li><a href="pages_profile.html" class="btn-login">Profile</a></li>
+                <li><a href="#" class="btn-register" onclick="logout()">Logout</a></li>
+                <li><i class="fas fa-moon" id="darkModeToggle" onclick="toggleDarkMode()" title="Toggle Dark Mode"></i></li>
+            </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding: 40px 0;">
+        <h1 style="margin-bottom: 30px;"><i class="fas fa-exclamation-circle"></i> Report a Lost Item</h1>
+
+        <div class="card" style="max-width: 600px;">
+            <form id="lostItemForm">
+                <div class="form-group">
+                    <label for="itemName">Item Name *</label>
+                    <input type="text" id="itemName" required placeholder="e.g., Silver Wedding Ring">
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Category *</label>
+                    <select id="category" required>
+                        <option value="">Select Category</option>
+                        <option value="jewelry">Jewelry</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="documents">Documents</option>
+                        <option value="clothing">Clothing</option>
+                        <option value="accessories">Accessories</option>
+                        <option value="keys">Keys</option>
+                        <option value="wallet">Wallet</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description *</label>
+                    <textarea id="description" rows="4" required placeholder="Describe the item in detail, including color, size, distinctive marks, etc."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="locationLost">Location Lost *</label>
+                    <input type="text" id="locationLost" required placeholder="e.g., Downtown Shopping Mall, 5th Street">
+                </div>
+
+                <div class="form-group">
+                    <label for="dateLost">Date Lost *</label>
+                    <input type="date" id="dateLost" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="imageUpload">Upload Photo (Optional)</label>
+                    <input type="file" id="imageUpload" accept="image/*">
+                    <small style="color: #999;">Max 5MB. Supports JPG, PNG, GIF</small>
+                    <img id="imagePreview" style="margin-top: 10px; max-width: 200px; display: none; border-radius: 5px;">
+                </div>
+
+                <div class="form-group">
+                    <label for="contactInfo">Contact Information *</label>
+                    <input type="text" id="contactInfo" required placeholder="Phone or Email">
+                </div>
+
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="terms" required>
+                    <label for="terms">I confirm this information is accurate</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">Report Lost Item</button>
+                <a href="pages_dashboard.html" class="btn btn-block" style="background-color: #999; color: white; text-align: center; margin-top: 10px; text-decoration: none;">Cancel</a>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="js_utils.js"></script>
+    <script type="module" src="js_auth.js"></script>
+    <script>
+        // Wait for modules to load before calling checkAuth
+        function ensureCheckAuth() {
+            if (typeof checkAuth === 'function') {
+                checkAuth();
+            } else {
+                setTimeout(ensureCheckAuth, 50);
+            }
+        }
+        ensureCheckAuth();
+        
+        document.getElementById('imageUpload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    showAlert('File Too Large', 'Image must be smaller than 5MB');
+                    return;
+                }
+                const base64 = await convertImageToBase64(file);
+                document.getElementById('imagePreview').src = base64;
+                document.getElementById('imagePreview').style.display = 'block';
+            }
+        });
+        
+        document.getElementById('lostItemForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const user = getCurrentUser();
+            if (!user) {
+                showAlert('Error', 'Please login first');
+                return;
+            }
+            
+            const item = {
+                itemName: document.getElementById('itemName').value,
+                category: document.getElementById('category').value,
+                description: document.getElementById('description').value,
+                locationLost: document.getElementById('locationLost').value,
+                dateLost: document.getElementById('dateLost').value,
+                imageURL: document.getElementById('imagePreview').src || null,
+                ownerId: user.id,
+                status: 'open',
+                contactInfo: document.getElementById('contactInfo').value,
+                createdAt: new Date().toISOString()
+            };
+            
+            await addRecord(DB.lostItems, item);
+            showToast('Lost item reported successfully!');
+            setTimeout(() => {
+                window.location.href = 'pages_dashboard.html';
+            }, 1500);
+        });
+    </script>
+</body>
+</html>

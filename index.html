@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Lost and Found - Find or Report Lost Items</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-search"></i>
+                <span>E-Lost & Found</span>
+            </div>
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#contact">Contact</a></li>
+                <li><a href="pages_admin.html">Admin</a></li>
+                <li><a href="auth_login.html" class="btn-login">Login</a></li>
+                <li><a href="auth_register.html" class="btn-register">Register</a></li>
+                <li><i class="fas fa-moon" id="darkModeToggle" onclick="toggleDarkMode()" title="Toggle Dark Mode"></i></li>
+            </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="hero-content">
+            <h1>Lost Something?</h1>
+            <p>Help reunite lost items with their owners. Report lost items, find found items, and recover what matters most.</p>
+            <div class="hero-buttons">
+                <a href="pages_lost_item.html" class="btn btn-primary">
+                    <i class="fas fa-exclamation-circle"></i> Report Lost Item
+                </a>
+                <a href="pages_found_item.html" class="btn btn-secondary">
+                    <i class="fas fa-check-circle"></i> Report Found Item
+                </a>
+            </div>
+        </div>
+        <div class="hero-image">
+            <i class="fas fa-search-location"></i>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2>Why Choose Us?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <i class="fas fa-shield-alt"></i>
+                    <h3>Secure & Private</h3>
+                    <p>Your personal information is protected. Safe and secure communication with verified users.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-search"></i>
+                    <h3>Easy Search</h3>
+                    <p>Advanced filters by category, location, and date to find your item quickly and easily.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-image"></i>
+                    <h3>Photo Upload</h3>
+                    <p>Upload clear photos of lost or found items to increase the chances of recovery.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-bell"></i>
+                    <h3>Real-Time Alerts</h3>
+                    <p>Get instant notifications when matching items are reported in your area.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-mobile-alt"></i>
+                    <h3>Mobile Friendly</h3>
+                    <p>Access from anywhere, anytime. Fully responsive design for all devices.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-users"></i>
+                    <h3>Community Driven</h3>
+                    <p>Join thousands of users helping each other recover lost items daily.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <h2>How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Register & Login</h3>
+                    <p>Create your free account with your email and phone number.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Report Your Item</h3>
+                    <p>Post details about your lost or found item with photos and location.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Search & Browse</h3>
+                    <p>Search for your item or browse reported items matching your criteria.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>Connect & Claim</h3>
+                    <p>Contact the finder or owner and claim your item with verification.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials">
+        <div class="container">
+            <h2>What Users Say</h2>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="stars">★★★★★</div>
+                    <p>"Found my wedding ring within 48 hours! This platform is amazing!"</p>
+                    <div class="testimonial-author">
+                        <strong>Sarah Johnson</strong>
+                        <span>Verified User</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="stars">★★★★★</div>
+                    <p>"Easy to use interface. The search filters helped me locate my laptop quickly."</p>
+                    <div class="testimonial-author">
+                        <strong>Michael Chen</strong>
+                        <span>Verified User</span>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="stars">★★★★★</div>
+                    <p>"I returned 5 items to their owners through this system. Great community!"</p>
+                    <div class="testimonial-author">
+                        <strong>Emma Wilson</strong>
+                        <span>Verified User</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2>Get In Touch</h2>
+            <div class="contact-content">
+                <div class="contact-info">
+                    <div class="info-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h3>Email</h3>
+                            <p>support@elostandfound.com</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-phone"></i>
+                        <div>
+                            <h3>Phone</h3>
+                            <p>+1 (555) 123-4567</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <h3>Address</h3>
+                            <p>123 Main Street, City, State 12345</p>
+                        </div>
+                    </div>
+                </div>
+                <form class="contact-form" id="contactForm">
+                    <input type="text" placeholder="Your Name" required>
+                    <input type="email" placeholder="Your Email" required>
+                    <textarea placeholder="Your Message" rows="5" required></textarea>
+                    <button type="submit" class="btn btn-primary">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>E-Lost & Found</h3>
+                    <p>Helping people recover their lost items through community support.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="pages_search.html">Search Items</a></li>
+                        <li><a href="auth_login.html">Login</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Contact Us</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Follow Us</h4>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 E-Lost and Found System. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script type="module" src="js_utils.js"></script>
+    <script type="module" src="js_app.js"></script>
+</body>
+</html>

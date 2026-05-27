@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Items - E-Lost and Found</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-search"></i>
+                <span>E-Lost & Found</span>
+            </div>
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="pages_search.html">Search</a></li>
+                <li><a href="pages_lost_item.html">Report Lost</a></li>
+                <li><a href="pages_found_item.html">Report Found</a></li>
+                <li><a href="pages_admin.html">Admin</a></li>
+                <li><a href="pages_profile.html" class="btn-login">Profile</a></li>
+                <li><a href="#" class="btn-register" onclick="logout()">Logout</a></li>
+                <li><i class="fas fa-moon" id="darkModeToggle" onclick="toggleDarkMode()" title="Toggle Dark Mode"></i></li>
+            </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding: 40px 0;">
+        <h1 style="margin-bottom: 30px;"><i class="fas fa-search"></i> Search Items</h1>
+
+        <!-- Search Filters -->
+        <div class="search-filters">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="searchInput">Search by Name</label>
+                    <input type="text" id="searchInput" placeholder="Item name...">
+                </div>
+
+                <div class="filter-group">
+                    <label for="categoryFilter">Category</label>
+                    <select id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <option value="jewelry">Jewelry</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="documents">Documents</option>
+                        <option value="clothing">Clothing</option>
+                        <option value="accessories">Accessories</option>
+                        <option value="keys">Keys</option>
+                        <option value="wallet">Wallet</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="typeFilter">Type</label>
+                    <select id="typeFilter">
+                        <option value="">Both Lost & Found</option>
+                        <option value="lost">Lost Items</option>
+                        <option value="found">Found Items</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="locationFilter">Location</label>
+                    <input type="text" id="locationFilter" placeholder="Location...">
+                </div>
+
+                <div class="filter-group">
+                    <label for="dateFilter">Date Range</label>
+                    <select id="dateFilter">
+                        <option value="">Any Date</option>
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+
+                <div class="filter-group" style="display: flex; align-items: flex-end;">
+                    <button id="searchBtn" class="btn btn-primary" style="width: 100%; margin-bottom: 0;">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div style="margin-bottom: 20px;">
+            <h2>Results <span id="resultCount" style="color: #999;">(0)</span></h2>
+        </div>
+
+        <div class="search-results" id="searchResults">
+            <p style="grid-column: 1/-1; text-align: center; color: #999; padding: 40px;">Click Search to find items</p>
+        </div>
+    </div>
+
+    <script type="module" src="js_app.js"></script>
+    <script type="module">
+        import { getRecords, DB, formatLocation, formatDate } from './js_utils.js';
+
+        let currentResults = [];
+
+        document.getElementById('searchBtn').addEventListener('click', performSearch);
+
+        async function performSearch() {
+            const searchText = document.getElementById('searchInput').value.trim().toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+            const type = document.getElementById('typeFilter').value;
+            const location = document.getElementById('locationFilter').value.trim().toLowerCase();
+            const dateFilter = document.getElementById('dateFilter').value;
+
+            // Get all items from Firestore
+            let allItems = [];
+
+            if (type !== 'found') {
+                const lostItems = await getRecords(DB.lostItems);
+                lostItems.forEach(item => {
+                    allItems.push({ ...item, itemType: 'lost' });
+                });
+            }
+
+            if (type !== 'lost') {
+                const foundItems = await getRecords(DB.foundItems);
+                foundItems.forEach(item => {
+                    allItems.push({ ...item, itemType: 'found' });
+                });
+            }
+
+            // Filter items
+            currentResults = allItems.filter(item => {
+                let matches = true;
+
+                if (searchText && !item.itemName.toLowerCase().includes(searchText)) matches = false;
+                if (category && item.category !== category) matches = false;
+                if (location) {
+                    const itemLocation = (item.locationLost || item.locationFound || '').toLowerCase();
+                    if (!itemLocation.includes(location)) matches = false;
+                }
+
+                if (dateFilter) {
+                    const itemDate = new Date(item.createdAt);
+                    const today = new Date();
+
+                    if (dateFilter === 'today' && itemDate.toDateString() !== today.toDateString()) matches = false;
+                    if (dateFilter === 'week' && (today - itemDate) > 7 * 24 * 60 * 60 * 1000) matches = false;
+                    if (dateFilter === 'month' && (today - itemDate) > 30 * 24 * 60 * 60 * 1000) matches = false;
+                }
+
+                return matches;
+            });
+
+            displayResults();
+        }
+
+        function displayResults() {
+            const container = document.getElementById('searchResults');
+            document.getElementById('resultCount').textContent = `(${currentResults.length})`;
+
+            if (currentResults.length === 0) {
+                container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #999; padding: 40px;">No items found. Try adjusting your filters.</p>';
+                return;
+            }
+
+            container.innerHTML = currentResults.map(item => `
+                <div class="result-card" onclick="viewItem('${item.id}', '${item.itemType}')">
+                    <img src="${item.imageURL || 'https://via.placeholder.com/250x200'}" alt="${item.itemName}" class="result-image">
+                    <div class="result-content">
+                        <span class="result-badge ${item.itemType}">${item.itemType === 'lost' ? '❌ LOST' : '✓ FOUND'}</span>
+                        <h3>${item.itemName}</h3>
+                        <p><strong>${item.category}</strong></p>
+                        <p><i class="fas fa-map-pin"></i> ${formatLocation(item.locationLost || item.locationFound)}</p>
+                        <p style="font-size: 12px; color: #999;"><i class="fas fa-calendar"></i> ${formatDate(item.createdAt)}</p>
+                    </div>
+                    <div class="result-footer">
+                        <span class="result-date">${formatDate(item.createdAt)}</span>
+                        <a href="#" onclick="event.stopPropagation(); viewItem('${item.id}', '${item.itemType}')" class="btn btn-small btn-primary">View</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function viewItem(id, type) {
+            window.location.href = `pages_item_details.html?id=${id}&type=${type}`;
+        }
+
+        // Allow search on Enter key
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+        
+        document.getElementById('locationFilter').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+    </script>
+</body>
+</html>

@@ -167,7 +167,12 @@ function validateEmail(email) {
 
 // Format location
 function formatLocation(location) {
-  return location.trim() || "Not specified";
+  if (location === undefined || location === null) {
+    return "";
+  }
+
+  const formatted = String(location).trim();
+  return formatted || "";
 }
 
 // Initialize on page load

@@ -75,7 +75,7 @@
                 <div class="form-group">
                     <label for="imageUpload">Upload Photo (Optional)</label>
                     <input type="file" id="imageUpload" accept="image/*">
-                    <small style="color: #999;">Max 5MB. Supports JPG, PNG, GIF</small>
+                    <small style="color: #999;">Supports JPG, PNG, GIF</small>
                     <img id="imagePreview" style="margin-top: 10px; max-width: 200px; display: none; border-radius: 5px;">
                 </div>
 
@@ -111,10 +111,6 @@
         document.getElementById('imageUpload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
-                if (file.size > 5 * 1024 * 1024) {
-                    showAlert('File Too Large', 'Image must be smaller than 5MB');
-                    return;
-                }
                 const base64 = await convertImageToBase64(file);
                 document.getElementById('imagePreview').src = base64;
                 document.getElementById('imagePreview').style.display = 'block';

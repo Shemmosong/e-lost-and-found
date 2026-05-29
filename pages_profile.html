@@ -112,7 +112,7 @@
 
     <script type="module">
         import { checkAuth } from './js_auth.js';
-        import { logout, DB, getRecords, findById, getCurrentUser, formatDate, formatLocation } from './js_utils.js';
+        import { logout, DB, getRecords, getCurrentUser, formatDate, formatLocation } from './js_utils.js';
 
         // Bind logout to window for inline onclick handlers
         window.logout = logout;
@@ -139,9 +139,10 @@
             document.getElementById('infoJoined').textContent = formatDate(user.createdAt);
 
             // Load statistics
+            const users = await getRecords(DB.users);
             const lostItems = (await getRecords(DB.lostItems)).filter(i => i.ownerId === user.id && i.status !== 'recovered');
             const foundItems = (await getRecords(DB.foundItems)).filter(i => i.finderId === user.id && i.status !== 'claimed');
-            const claims = (await getRecords(DB.claims)).filter(c => c.claimantId === user.id && c.status === 'completed');
+            const claims = (await getRecords(DB.claims)).filter(c => c.claimerId === user.id && /approved/i.test(c.status));
 
             document.getElementById('userLostCount').textContent = lostItems.length;
             document.getElementById('userFoundCount').textContent = foundItems.length;
@@ -185,19 +186,49 @@
             }
 
             // Load claims
-            const userClaims = (await getRecords(DB.claims)).filter(c => c.claimantId === user.id);
+            const userClaims = (await getRecords(DB.claims)).filter(c => c.claimerId === user.id);
             if (userClaims.length === 0) {
                 document.getElementById('userClaims').innerHTML = '<p style="color: #999;">You haven\'t made any claims yet</p>';
             } else {
-                const claimsHTML = [];
-                for (const claim of userClaims) {
-                    let item = await findById(DB.lostItems, claim.itemId);
-                    if (!item) {
-                        item = await findById(DB.foundItems, claim.itemId);
-                    }
-                    claimsHTML.push(`<tr><td>${item ? item.itemName : 'Unknown'}</td><td><span class="status-badge ${claim.status}">${claim.status}</span></td><td>${formatDate(claim.createdAt)}</td></tr>`);
-                }
-                document.getElementById('userClaims').innerHTML = '<table><thead><tr><th>Item</th><th>Status</th><th>Date</th></tr></thead><tbody>' + claimsHTML.join('') + '</tbody></table>';
+               document.getElementById('userClaims').innerHTML = userClaims.map(claim => {
+        const dateValue = claim.claimDate || claim.createdAt || new Date().toISOString();
+        const statusLabel = String(claim.status || 'Pending').charAt(0).toUpperCase() + String(claim.status || 'Pending').slice(1).toLowerCase();
+        const statusClass = statusLabel.toLowerCase();
+        
+        // Check if the claim was approved
+        const isApproved = statusClass === 'completed' || statusClass === 'approved';
+
+        // Find owner/reporter contact info from your existing users array
+        const ownerUser = users.find(u => u.id === claim.ownerId) || null;
+        let contactDisplay = '0712345678'; // fallback test number
+        if (ownerUser && ownerUser.phone) {
+            contactDisplay = ownerUser.phone;
+        } else if (ownerUser && ownerUser.email) {
+            contactDisplay = ownerUser.email;
+        }
+
+        // The Magic Reveal Box: Only renders if status is approved/completed
+        const founderContactHtml = isApproved
+            ? `<div style="background-color: #e7f1ff; border: 1px solid #007bff; padding: 12px; margin-top: 10px; border-radius: 4px; flex: 0 0 100%; width: 100%; max-width: 100%; box-sizing: border-box; display: block;">
+                 <strong style="color: #007bff;">🎉 Claim Approved!</strong><br>
+                 <span style="font-size: 14px; color: #333;">
+                    Please contact the founder at <strong>${contactDisplay}</strong> to arrange collection.
+                 </span>
+               </div>`
+            : '';
+
+        // Build the physical card utilizing your existing CSS classes
+        return `
+        <div class="item-card" style="margin-bottom: 16px;">
+            <div class="item-info">
+                <h4>${claim.itemName || 'Unknown Item'}</h4>
+                <p><strong>Date:</strong> ${formatDate(dateValue)}</p>
+                <p><strong>Status:</strong> <span class="status-badge ${statusClass}">${statusLabel}</span></p>
+                ${founderContactHtml}
+            </div>
+        </div>
+        `;
+    }).join('');
             }
         }
 

@@ -33,7 +33,10 @@
     <div class="admin-header">
         <div class="container" style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
             <h1><i class="fas fa-shield-alt"></i> Admin Dashboard</h1>
-            <div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <button class="btn btn-primary" onclick="downloadLostItemsReport()" title="Download Lost Items Report as CSV">
+                    <i class="fas fa-download"></i> Download Report
+                </button>
                 <span id="adminName" style="margin-right: 20px;">Admin</span>
                 <a href="index.html" class="btn btn-secondary">Back to Home</a>
             </div>
@@ -155,6 +158,13 @@
 
     <script type="module" src="js_utils.js"></script>
     <script type="module" src="js_auth.js"></script>
+    <script src="https://cdn.emailjs.com/sdk/3.2.0/email.min.js"></script>
+    <script>
+        // Initialize EmailJS - replace with your EmailJS public key
+        if (window.emailjs) {
+            try { emailjs.init('YOUR_EMAILJS_PUBLIC_KEY'); } catch (e) { console.warn('EmailJS init failed', e); }
+        }
+    </script>
     <script>
         // Wait for modules to load before calling checkAuth
         function ensureCheckAuth() {
@@ -229,18 +239,20 @@
 
             // Load claims table
             document.getElementById('claimsTable').innerHTML = claims.map(c => {
-                const item = findById(DB.lostItems, c.itemId) || findById(DB.foundItems, c.itemId);
-                const claimant = users.find(u => u.id === c.claimantId);
+                const claimant = users.find(u => u.id === c.claimerId);
+                const isPending = String(c.status || '').toLowerCase() === 'pending';
                 return `
                     <tr>
-                        <td>${item ? item.itemName : 'Unknown'}</td>
-                        <td>${claimant ? claimant.fullName : 'Unknown'}</td>
-                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${c.proofDescription}</td>
+                        <td>${c.itemName || 'Unknown'}</td>
+                        <td>${claimant ? claimant.fullName : c.claimerId || 'Unknown'}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${c.proofOfOwnership || ''}</td>
                         <td><span class="status-badge ${c.status}">${c.status}</span></td>
-                        <td>${formatDate(c.createdAt)}</td>
+                        <td>${formatDate(c.claimDate || c.createdAt)}</td>
                         <td>
-                            <button onclick="approveClaim('${c.id}')" class="btn btn-small btn-success">Approve</button>
-                            <button onclick="rejectClaim('${c.id}')" class="btn btn-small btn-danger">Reject</button>
+                            ${isPending ? `
+                                <button onclick="approveClaim('${c.id}')" class="btn btn-small btn-success">Approve</button>
+                                <button onclick="rejectClaim('${c.id}')" class="btn btn-small btn-danger">Reject</button>
+                            ` : '<span style="color:#666; font-size:12px;">No actions required</span>'}
                         </td>
                     </tr>
                 `;
@@ -274,10 +286,47 @@
             }
         }
 
-        function approveClaim(id) {
-            updateRecord(DB.claims, id, { status: 'completed' });
-            loadAdminPanel();
-            showToast('Claim approved');
+        async function approveClaim(id) {
+            try {
+                // Update claim status in Firestore
+                await updateRecord(DB.claims, id, { status: 'completed' });
+
+                // Reload panel data
+                loadAdminPanel();
+                showToast('Claim approved');
+
+                // Fetch the claim and claimant details to send email
+                const claim = await findById(DB.claims, id);
+                if (!claim) return;
+
+                const users = await getRecords(DB.users);
+                const claimant = users.find(u => u.id === claim.claimerId);
+                const claimantEmail = claimant ? claimant.email : null;
+
+                if (claimantEmail && window.emailjs) {
+                    // Prepare template params (update keys to match your EmailJS template)
+                    const templateParams = {
+                        to_name: claimant ? claimant.fullName : '',
+                        to_email: claimantEmail,
+                        item_name: claim.itemName || '',
+                        claim_date: formatDate(claim.claimDate || claim.createdAt),
+                        message: 'Your claim has been approved. Please contact the owner to arrange collection.'
+                    };
+
+                    // Send email (replace 'service_id' and 'template_id' with your EmailJS values)
+                    emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', templateParams)
+                        .then(() => {
+                            showToast('Notification email sent to claimant');
+                        })
+                        .catch(err => {
+                            console.error('EmailJS send error:', err);
+                            showToast('Claim approved (email not sent)');
+                        });
+                }
+            } catch (err) {
+                console.error('approveClaim error:', err);
+                showToast('Error approving claim');
+            }
         }
 
         function rejectClaim(id) {
@@ -285,6 +334,62 @@
                 updateRecord(DB.claims, id, { status: 'rejected' });
                 loadAdminPanel();
                 showToast('Claim rejected');
+            }
+        }
+
+        // Download Lost Items Report as CSV
+        async function downloadLostItemsReport() {
+            try {
+                showToast('Generating report...');
+                
+                // Fetch all records from lostItems collection
+                const lostItems = await getRecords(DB.lostItems);
+                
+                if (lostItems.length === 0) {
+                    showToast('No lost items to report');
+                    return;
+                }
+
+                // Create CSV header
+                const headers = ['Item Name', 'Category', 'Date Lost', 'Location Lost'];
+                
+                // Convert records to CSV rows
+                const rows = lostItems.map(item => [
+                    item.itemName || '',
+                    item.category || '',
+                    item.dateLost || '',
+                    item.locationLost || ''
+                ]);
+
+                // Build CSV string with escaped values
+                const csvContent = [
+                    headers.map(h => `"${h}"`).join(','),
+                    ...rows.map(row => 
+                        row.map(cell => {
+                            // Escape quotes and wrap in quotes if contains comma, quote, or newline
+                            const escaped = String(cell).replace(/"/g, '""');
+                            return `"${escaped}"`;
+                        }).join(',')
+                    )
+                ].join('\n');
+
+                // Create blob and trigger download
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'LostAndFoundReport.csv');
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showToast(`Report downloaded successfully (${lostItems.length} items)`);
+            } catch (error) {
+                console.error('Error downloading report:', error);
+                showToast('Error generating report');
             }
         }
 

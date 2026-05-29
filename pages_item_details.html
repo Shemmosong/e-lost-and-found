@@ -6,6 +6,13 @@
     <title>Item Details - E-Lost and Found</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Simple modal styles for claim dialog */
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: #fff; padding: 18px; border-radius: 8px; max-width: 520px; width: 92%; box-shadow: 0 6px 18px rgba(0,0,0,0.15); }
+        .modal-content h3 { margin-top: 0; }
+        .modal-content textarea { width: 100%; min-height: 90px; margin-top: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+    </style>
 </head>
 <body>
     <!-- Navigation Bar -->
@@ -36,6 +43,21 @@
         <a href="pages_search.html" style="color: #0066cc; text-decoration: none; margin-bottom: 20px; display: inline-block;"><i class="fas fa-arrow-left"></i> Back to Search</a>
 
         <div id="itemDetails"></div>
+
+        <!-- Claim Modal -->
+        <div id="claimModal" class="modal" aria-hidden="true">
+            <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="claimModalTitle">
+                <h3 id="claimModalTitle">Claim This Item</h3>
+                <p>Please type a brief <strong>Proof of Ownership</strong> to help the owner verify your claim.</p>
+                <textarea id="claimProof" placeholder="e.g., serial number, unique mark, purchase details..."></textarea>
+                <input type="hidden" id="claimItemId">
+                <input type="hidden" id="claimItemType">
+                <div style="text-align: right; margin-top: 10px;">
+                    <button class="btn btn-secondary" onclick="closeClaimModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="submitClaimForm()">Submit Claim</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="js_utils.js"></script>
@@ -77,7 +99,7 @@
 
                         <div class="details-row">
                             <span class="details-label"><i class="fas fa-map-pin"></i> Location:</span>
-                            <span class="details-value">${formatLocation(item.locationLost || item.locationFound)}</span>
+                            <span class="details-value">${formatLocation(type === 'lost' ? item.locationLost : item.locationFound)}</span>
                         </div>
 
                         <div class="details-row">
@@ -115,19 +137,61 @@
                 return;
             }
 
-            const claimProof = prompt('Please describe how you can prove this is your item:');
-            if (!claimProof) return;
+            // Populate modal fields and show modal
+            document.getElementById('claimItemId').value = id;
+            document.getElementById('claimItemType').value = type;
+            document.getElementById('claimProof').value = '';
+            const modal = document.getElementById('claimModal');
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-hidden', 'false');
+        }
 
-            const claim = {
-                itemId: id,
-                claimantId: user.id,
-                proofDescription: claimProof,
-                status: 'pending',
-                createdAt: new Date().toISOString()
+        function closeClaimModal() {
+            const modal = document.getElementById('claimModal');
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        async function submitClaimForm() {
+            const user = getCurrentUser();
+            if (!user) {
+                showAlert('Error', 'Please login to claim an item');
+                return;
+            }
+
+            const proof = document.getElementById('claimProof').value.trim();
+            if (!proof) {
+                showAlert('Error', 'Please provide proof of ownership');
+                return;
+            }
+
+            const itemId = document.getElementById('claimItemId').value;
+            const itemType = document.getElementById('claimItemType').value;
+            const storeName = itemType === 'lost' ? DB.lostItems : DB.foundItems;
+
+            // Fetch the item to get owner/finder and name
+            const item = await findById(storeName, itemId);
+            const ownerId = item ? (item.ownerId || item.finderId || null) : null;
+            const itemName = item ? item.itemName : '';
+
+            const claimDoc = {
+                itemId: itemId,
+                itemName: itemName,
+                ownerId: ownerId,
+                claimerId: user.id,
+                proofOfOwnership: proof,
+                claimDate: new Date().toISOString(),
+                status: 'Pending'
             };
 
-            addRecord(DB.claims, claim);
-            showToast('Claim submitted! The item owner will review your claim.');
+            try {
+                await addRecord(DB.claims, claimDoc);
+                showAlert('Claim submitted successfully!', '');
+                closeClaimModal();
+            } catch (err) {
+                console.error('Error saving claim:', err);
+                showAlert('Error', 'Could not submit claim. Please try again.');
+            }
         }
 
         document.addEventListener('DOMContentLoaded', loadItemDetails);

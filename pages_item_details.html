@@ -62,13 +62,18 @@
 
     <script type="module" src="js_utils.js"></script>
     <script>
-        function loadItemDetails() {
+        async function loadItemDetails() {
             const params = new URLSearchParams(window.location.search);
             const id = params.get('id');
-            const type = params.get('type') || 'lost';
+            const type = (params.get('type') || 'lost').toLowerCase();
 
-            const storeName = type === 'lost' ? DB.lostItems : DB.foundItems;
-            const item = findById(storeName, id);
+            if (!id) {
+                document.getElementById('itemDetails').innerHTML = '<p>Missing item ID.</p>';
+                return;
+            }
+
+            const storeName = type === 'found' ? DB.foundItems : DB.lostItems;
+            const item = await findById(storeName, id);
 
             if (!item) {
                 document.getElementById('itemDetails').innerHTML = '<p>Item not found.</p>';

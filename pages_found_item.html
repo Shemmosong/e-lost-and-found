@@ -95,6 +95,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script type="module" src="js_utils.js"></script>
     <script type="module" src="js_auth.js"></script>
     <script>
@@ -107,6 +108,19 @@
             }
         }
         ensureCheckAuth();
+
+        if (window.emailjs) {
+            emailjs.init("YOUR_PUBLIC_KEY");
+        } else {
+            console.warn('EmailJS script not loaded yet');
+        }
+
+        async function sendReportConfirmation(templateParams) {
+            if (!window.emailjs || !emailjs.send) {
+                throw new Error('EmailJS is unavailable.');
+            }
+            return await emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", templateParams);
+        }
         
         document.getElementById('imageUpload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -139,11 +153,30 @@
                 createdAt: new Date().toISOString()
             };
             
-            await addRecord(DB.foundItems, item);
-            showToast('Found item reported successfully!');
-            setTimeout(() => {
-                window.location.href = 'pages_dashboard.html';
-            }, 1500);
+            const savedItem = await addRecord(DB.foundItems, item);
+            if (!savedItem) {
+                showAlert('Error', 'Unable to save your report. Please try again.');
+                return;
+            }
+
+            const templateParams = {
+                user_email: user.email,
+                user_name: user.fullName,
+                item_name: item.itemName,
+                item_description: item.description,
+                date_reported: new Date(item.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+            };
+
+            try {
+                await sendReportConfirmation(templateParams);
+                showAlert('Success', 'Found item reported successfully and confirmation email sent!');
+                setTimeout(() => {
+                    window.location.href = 'pages_dashboard.html';
+                }, 1500);
+            } catch (error) {
+                console.error('EmailJS send error:', error);
+                showAlert('Email Error', 'Your report was saved, but we could not send the confirmation email. Please try again later.');
+            }
         });
     </script>
 </body>

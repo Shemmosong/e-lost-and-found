@@ -1,5 +1,6 @@
 import { db } from "./js_firebase.js";
-import { addDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { collection, getDocs, query, where, setDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { validateEmail, showAlert, setCurrentUser, showToast, getCurrentUser, isLoggedIn } from "./js_utils.js";
 
 /* Authentication Handler */
@@ -58,6 +59,7 @@ async function handleRegister(e) {
   const phone = document.getElementById("phone").value.trim();
   const password = document.getElementById("password").value;
   const confirmPassword = document.getElementById("confirmPassword").value;
+  const termsCheckbox = document.getElementById("terms").checked;
 
   if (!fullName || !email || !phone || !password) {
     showAlert("Validation Error", "All fields are required");
@@ -79,34 +81,41 @@ async function handleRegister(e) {
     return;
   }
 
+  if (!termsCheckbox) {
+    showAlert("Validation Error", "You must agree to the Terms and Conditions");
+    return;
+  }
+
   try {
-    const emailQuery = query(collection(db, "users"), where("email", "==", email));
-    const emailSnapshot = await getDocs(emailQuery);
+    // Initialize Auth
+    const auth = getAuth();
 
-    if (!emailSnapshot.empty) {
-      showAlert("Registration Failed", "This email is already registered");
-      return;
-    }
+    // Create user in Firebase Authentication
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const uid = userCredential.user.uid;
 
-    const newUser = {
+    // Prepare profile payload without password
+    const profile = {
       fullName,
       email,
       phone,
-      password, // In production, hash this!
       role: "user",
       profileImage: null,
       createdAt: new Date().toISOString(),
     };
 
-    const docRef = await addDoc(collection(db, "users"), newUser);
-    const user = { id: docRef.id, ...newUser };
+    // Save profile in Firestore using the Auth UID as the document ID
+    await setDoc(doc(db, "users", uid), profile);
 
+    const user = { id: uid, ...profile };
     setCurrentUser(user);
     showToast("Registration successful!");
     window.location.href = "pages_dashboard.html";
   } catch (error) {
     console.error("Registration error:", error);
-    showAlert("Error", "An error occurred during registration");
+    // Provide clearer error messages from Firebase when available
+    const message = error && error.message ? error.message : 'An error occurred during registration';
+    showAlert("Registration Failed", message);
   }
 }
 
@@ -127,29 +136,25 @@ if (forgotForm) {
 async function handleForgotPassword(e) {
   e.preventDefault();
 
-  const email = document.getElementById("email").value.trim();
+  const email = (document.getElementById("email") || { value: '' }).value.trim();
 
-  if (!validateEmail(email)) {
-    showAlert("Error", "Please enter a valid email address");
+  if (!email) {
+    showAlert("Error", "Please enter your email address");
     return;
   }
 
   try {
-    const forgotQuery = query(collection(db, "users"), where("email", "==", email));
-    const snapshot = await getDocs(forgotQuery);
+    const auth = getAuth();
+    // Wait for Firebase to send the password reset email
+    await sendPasswordResetEmail(auth, email);
 
-    if (snapshot.empty) {
-      showAlert("Not Found", "No account found with this email address");
-      return;
-    }
-
-    showAlert("Success", "A password reset link has been sent to " + email);
+    alert("Success! A password reset link has been sent to your email. Please check your inbox and your spam folder.");
     setTimeout(() => {
       window.location.href = "auth_login.html";
     }, 2000);
   } catch (error) {
-    console.error("Forgot password error:", error);
-    showAlert("Error", "An error occurred while trying to reset password");
+    console.error(error);
+    alert("Error: " + (error && error.message ? error.message : String(error)));
   }
 }
 

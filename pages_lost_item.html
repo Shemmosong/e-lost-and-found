@@ -140,7 +140,7 @@
             };
             
             await addRecord(DB.lostItems, item);
-            showToast('Lost item reported successfully!');
+            showAlert('Success', 'Lost item reported successfully!');
             setTimeout(() => {
                 window.location.href = 'pages_dashboard.html';
             }, 1500);

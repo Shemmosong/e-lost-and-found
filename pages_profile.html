@@ -209,7 +209,7 @@
 
         // The Magic Reveal Box: Only renders if status is approved/completed
         const founderContactHtml = isApproved
-            ? `<div style="background-color: #e7f1ff; border: 1px solid #007bff; padding: 12px; margin-top: 10px; border-radius: 4px; flex: 0 0 100%; width: 100%; max-width: 100%; box-sizing: border-box; display: block;">
+            ? `<div style="flex: 0 0 100% !important; flex-basis: 100% !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box; display: block; margin-top: 15px; background-color: #e7f1ff; border: 1px solid #007bff; padding: 12px; border-radius: 4px;">
                  <strong style="color: #007bff;">🎉 Claim Approved!</strong><br>
                  <span style="font-size: 14px; color: #333;">
                     Please contact the founder at <strong>${contactDisplay}</strong> to arrange collection.
@@ -219,13 +219,15 @@
 
         // Build the physical card utilizing your existing CSS classes
         return `
-        <div class="item-card" style="margin-bottom: 16px;">
-            <div class="item-info">
-                <h4>${claim.itemName || 'Unknown Item'}</h4>
-                <p><strong>Date:</strong> ${formatDate(dateValue)}</p>
-                <p><strong>Status:</strong> <span class="status-badge ${statusClass}">${statusLabel}</span></p>
-                ${founderContactHtml}
+        <div style="margin-bottom: 16px; width: 100%; box-sizing: border-box;">
+            <div class="item-card" style="grid-template-columns: 1fr !important; display: grid !important; width: 100% !important; box-sizing: border-box !important;">
+                <div class="item-info" style="grid-column: 1 / -1; width: 100% !important; box-sizing: border-box !important;">
+                    <h4>${claim.itemName || 'Unknown Item'}</h4>
+                    <p><strong>Date:</strong> ${formatDate(dateValue)}</p>
+                    <p><strong>Status:</strong> <span class="status-badge ${statusClass}">${statusLabel}</span></p>
+                </div>
             </div>
+            ${founderContactHtml}
         </div>
         `;
     }).join('');

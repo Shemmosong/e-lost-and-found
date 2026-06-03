@@ -1,6 +1,6 @@
 import { db } from "./js_firebase.js";
-import { collection, getDocs, query, where, setDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { collection, getDocs, query, where, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { validateEmail, showAlert, setCurrentUser, showToast, getCurrentUser, isLoggedIn } from "./js_utils.js";
 
 /* Authentication Handler */
@@ -46,10 +46,8 @@ async function handleLogin(e) {
   }
 }
 
-const registerForm = document.getElementById("registerForm");
-if (registerForm) {
-  registerForm.addEventListener("submit", handleRegister);
-}
+// Note: registration is handled via exported `registerUser` so pages can
+// perform verification (OTP) before calling into Firebase registration.
 
 async function handleRegister(e) {
   e.preventDefault();
@@ -119,6 +117,95 @@ async function handleRegister(e) {
   }
 }
 
+/**
+ * Register a user programmatically via Email. This is exported so pages can run
+ * verification (OTP) before creating the account.
+ * @param {{fullName:string,email:string,phone?:string,password:string}} payload
+ */
+async function registerUser(payload) {
+  const { fullName, email, phone, password } = payload;
+
+  if (!fullName || !email || !password) {
+    showAlert("Validation Error", "All required fields must be provided");
+    return null;
+  }
+
+  try {
+    const auth = getAuth();
+
+    // Create user in Firebase Authentication
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const uid = userCredential.user.uid;
+
+    // Prepare profile payload without password
+    const profile = {
+      fullName,
+      email,
+      phone: phone || '',
+      role: "user",
+      profileImage: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Save profile in Firestore using the Auth UID as the document ID
+    await setDoc(doc(db, "users", uid), profile);
+
+    const user = { id: uid, ...profile };
+    setCurrentUser(user);
+    showToast("Registration successful!");
+    window.location.href = "pages_dashboard.html";
+    return user;
+  } catch (error) {
+    console.error("Registration error:", error);
+    const message = error && error.message ? error.message : 'An error occurred during registration';
+    showAlert("Registration Failed", message);
+    return null;
+  }
+}
+
+/**
+ * Register a user via Phone Authentication. Creates a Firestore profile for the
+ * phone-authenticated user returned by Firebase Phone Auth.
+ * @param {{fullName:string,phone:string,userCredential:FirebaseAuthUserCredential}} payload
+ */
+async function registerPhoneUser(payload) {
+  const { fullName, phone, userCredential } = payload;
+
+  if (!fullName || !phone || !userCredential || !userCredential.user) {
+    showAlert("Validation Error", "Phone registration failed: missing user data");
+    return null;
+  }
+
+  try {
+    const uid = userCredential.user.uid;
+    const email = userCredential.user.email || '';
+
+    // Prepare profile payload
+    const profile = {
+      fullName,
+      email,
+      phone,
+      role: "user",
+      profileImage: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Save profile in Firestore using the Auth UID as the document ID
+    await setDoc(doc(db, "users", uid), profile);
+
+    const user = { id: uid, ...profile };
+    setCurrentUser(user);
+    showToast("Registration successful!");
+    window.location.href = "pages_dashboard.html";
+    return user;
+  } catch (error) {
+    console.error("Phone registration error:", error);
+    const message = error && error.message ? error.message : 'An error occurred during phone registration';
+    showAlert("Registration Failed", message);
+    return null;
+  }
+}
+
 const togglePassword = document.getElementById("togglePassword");
 if (togglePassword) {
   togglePassword.addEventListener("click", () => {
@@ -168,7 +255,7 @@ if (typeof window !== "undefined") {
   window.checkAuth = checkAuth;
 }
 
-export { checkAuth };
+export { checkAuth, registerUser, registerPhoneUser };
 
 
 document.addEventListener("DOMContentLoaded", checkAuth);

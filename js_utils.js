@@ -1,5 +1,5 @@
 import { db } from "./js_firebase.js";
-import { addDoc, collection, deleteDoc, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { addDoc, collection, deleteDoc, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 /* E-Lost and Found - Global Utilities */
 

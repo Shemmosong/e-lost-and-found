@@ -18,50 +18,28 @@
                 <p>Create Your Account</p>
             </div>
 
-            <!-- Registration Method Selector -->
-            <div class="form-group" style="margin-bottom: 20px;">
-                <label for="regMethod">Choose Registration Method</label>
-                <select id="regMethod" style="width:100%; padding:10px; border-radius:4px; border:1px solid #ddd;">
-                    <option value="email">Email Only</option>
-                    <option value="phone">Phone Only</option>
-                    <option value="both">Email & Phone</option>
-                </select>
-            </div>
-
             <form id="registerForm" class="auth-form">
                 <div class="form-group">
-                    <label for="fullName">Full Name</label>
-                    <input type="text" id="fullName" name="fullName" required placeholder="John Doe">
+                    <label for="registerFullName">Full Name</label>
+                    <input type="text" id="registerFullName" name="fullName" required placeholder="John Doe">
                 </div>
 
-                <!-- Email Group -->
-                <div id="emailGroup">
-                    <div class="form-group">
-                        <label for="email">Email Address</label>
-                        <input type="email" id="email" name="email" required placeholder="your@email.com">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <div class="password-input">
-                            <input type="password" id="password" name="password" required placeholder="••••••••">
-                            <i class="fas fa-eye" id="togglePassword"></i>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="confirmPassword">Confirm Password</label>
-                        <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="••••••••">
-                    </div>
+                <div class="form-group">
+                    <label for="registerPhone">Phone Number</label>
+                    <input type="tel" id="registerPhone" name="phone" placeholder="(555) 123-4567">
                 </div>
 
-                <!-- Phone Group -->
-                <div id="phoneGroup" style="display:none;">
-                    <div class="form-group">
-                        <label for="phone">Phone Number</label>
-                        <input type="tel" id="phone" name="phone" placeholder="+1 (555) 123-4567">
+                <div class="form-group">
+                    <label for="registerEmail">Email Address</label>
+                    <input type="email" id="registerEmail" name="email" placeholder="your@email.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <div class="password-input">
+                        <input type="password" id="registerPassword" name="password" required placeholder="••••••••">
+                        <i class="fas fa-eye" id="togglePassword"></i>
                     </div>
-                    <div id="recaptcha-container"></div>
                 </div>
 
                 <div class="form-group checkbox">
@@ -84,366 +62,80 @@
         </div>
     </div>
 
-    <script type="module" src="js_utils.js"></script>
-    <script type="module" src="js_auth.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <!-- OTP Verification Modal (hidden by default) -->
-    <div id="otpVerificationModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center; flex-direction:column;">
-        <div style="background:#fff; padding:30px; border-radius:8px; width:350px; max-width:90%; text-align:center;">
-            <h3>Verify Your Account</h3>
-            <p id="otpMessage" style="color:#666; font-size:13px; margin:10px 0;">Enter the 6-digit code sent to your account</p>
-            <input id="otpInput" type="text" maxlength="6" placeholder="000000" style="width:100%; padding:12px; margin:15px 0; font-size:18px; text-align:center; border:1px solid #ddd; border-radius:4px;" />
-            <div style="display:flex; gap:10px; justify-content:center; margin:20px 0;">
-                <button id="confirmOtpBtn" class="btn btn-primary">Verify</button>
-                <button id="resendOtpBtn" class="btn">Resend</button>
-            </div>
-            <button id="cancelOtpBtn" class="btn" style="margin-top:12px; background:#ccc; width:100%;">Cancel</button>
-        </div>
-    </div>
-
     <script type="module">
-        import { registerUser, registerPhoneUser } from './js_auth.js';
-        import { getAuth, signInWithPhoneNumber, RecaptchaVerifier } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-        import { app, db } from './js_firebase.js';
-        import { setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+        import { app } from './js_firebase.js';
+        import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-        // Initialize EmailJS
-        if (window.emailjs) {
-            try { emailjs.init('YOUR_EMAILJS_PUBLIC_KEY'); } catch (e) { console.warn('EmailJS init failed', e); }
-        }
-
-        const regMethodSelect = document.getElementById('regMethod');
-        const emailGroup = document.getElementById('emailGroup');
-        const phoneGroup = document.getElementById('phoneGroup');
-        const registerForm = document.getElementById('registerForm');
-        const otpModal = document.getElementById('otpVerificationModal');
-        const otpInput = document.getElementById('otpInput');
-        const otpMessage = document.getElementById('otpMessage');
-        const confirmOtpBtn = document.getElementById('confirmOtpBtn');
-        const resendOtpBtn = document.getElementById('resendOtpBtn');
-        const cancelOtpBtn = document.getElementById('cancelOtpBtn');
-
-        let currentOTP = null;
-        let pendingPayload = null;
-        let confirmationResult = null;
-        let currentMethod = 'email';
         const auth = getAuth(app);
+        const db = getFirestore(app);
+        const registerForm = document.getElementById('registerForm');
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('registerPassword');
 
-        // ===== 1. DYNAMIC UI FIELD VISIBILITY =====
-        regMethodSelect.addEventListener('change', (e) => {
-            currentMethod = e.target.value;
-
-            if (currentMethod === 'email') {
-                emailGroup.style.display = 'block';
-                phoneGroup.style.display = 'none';
-                document.getElementById('email').required = true;
-                document.getElementById('password').required = true;
-                document.getElementById('confirmPassword').required = true;
-                document.getElementById('phone').required = false;
-            } else if (currentMethod === 'phone') {
-                emailGroup.style.display = 'none';
-                phoneGroup.style.display = 'block';
-                document.getElementById('email').required = false;
-                document.getElementById('password').required = false;
-                document.getElementById('confirmPassword').required = false;
-                document.getElementById('phone').required = true;
-            } else if (currentMethod === 'both') {
-                emailGroup.style.display = 'block';
-                phoneGroup.style.display = 'block';
-                document.getElementById('email').required = true;
-                document.getElementById('password').required = true;
-                document.getElementById('confirmPassword').required = true;
-                document.getElementById('phone').required = true;
-            }
-        });
-
-        // ===== 2. FIREBASE SETUP: RecaptchaVerifier =====
-        function getRecaptchaContainer() {
-            let container = document.getElementById('recaptcha-container');
-
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'recaptcha-container';
-                phoneGroup.appendChild(container);
-            }
-
-            return container;
-        }
-
-        async function ensureRecaptchaVerifier() {
-            const container = getRecaptchaContainer();
-
-            if (window.recaptchaVerifier) {
-                return window.recaptchaVerifier;
-            }
-
-            try {
-                window.recaptchaVerifier = new RecaptchaVerifier(auth, container, {
-                    size: 'invisible',
-                    callback: () => {
-                        console.log('reCAPTCHA token received');
-                    },
-                    'expired-callback': () => {
-                        console.log('reCAPTCHA token expired');
-                        resetRecaptchaVerifier();
-                    }
-                });
-
-                await window.recaptchaVerifier.render();
-                console.log('RecaptchaVerifier initialized');
-                return window.recaptchaVerifier;
-            } catch (err) {
-                console.error('RecaptchaVerifier initialization error:', err);
-                window.recaptchaVerifier = null;
-                throw err;
-            }
-        }
-
-        function resetRecaptchaVerifier() {
-            if (window.recaptchaVerifier) {
-                try {
-                    window.recaptchaVerifier.clear();
-                } catch (err) {
-                    console.warn('Unable to clear reCAPTCHA verifier:', err);
-                }
-            }
-            window.recaptchaVerifier = null;
-        }
-
-        function disableForm(disabled = true) {
-            Array.from(registerForm.querySelectorAll('input, button')).forEach(el => {
-                el.disabled = disabled;
-            });
-        }
-
-        function showOtpModal(show = true) {
-            otpModal.style.display = show ? 'flex' : 'none';
-            if (show) otpInput.focus();
-            else otpInput.value = '';
-        }
-
-        async function sendOtpEmail(email, name, otp) {
-            if (!window.emailjs || !emailjs.send) {
-                showAlert('Email Error', 'Email sending is not configured. OTP cannot be sent.');
-                return false;
-            }
-            const templateParams = {
-                user_email: email,
-                user_name: name,
-                otp_code: otp
-            };
-            try {
-                await emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', templateParams);
-                return true;
-            } catch (err) {
-                console.error('EmailJS send error:', err);
-                showAlert('Email Error', 'Unable to send OTP email. Please try again later.');
-                return false;
-            }
-        }
-
-        function generateOtp() {
-            return String(Math.floor(100000 + Math.random() * 900000));
-        }
-
-        function formatPhoneForFirebase(phoneValue) {
-            let formattedPhone = (phoneValue || '').trim();
-            formattedPhone = formattedPhone.replace(/[\s-]/g, '');
-
-            if (formattedPhone.startsWith('0')) {
-                formattedPhone = `+254${formattedPhone.slice(1)}`;
-            } else if (!formattedPhone.startsWith('+')) {
-                formattedPhone = `+254${formattedPhone}`;
-            }
-
-            return formattedPhone;
-        }
-
-        // ===== 3. FORM SUBMISSION EVENT =====
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const fullName = (document.getElementById('fullName') || {}).value.trim();
-            const email = (document.getElementById('email') || {}).value.trim();
-            const phone = (document.getElementById('phone') || {}).value.trim();
-            const password = (document.getElementById('password') || {}).value;
-            const confirmPassword = (document.getElementById('confirmPassword') || {}).value;
-            const termsChecked = (document.getElementById('terms') || {}).checked;
+            const fullName = document.getElementById('registerFullName').value.trim();
+            const phone = document.getElementById('registerPhone').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const termsAccepted = document.getElementById('terms').checked;
 
             if (!fullName) {
-                showAlert('Validation Error', 'Please enter your full name');
+                alert('Please enter your full name');
                 return;
             }
 
-            if (currentMethod === 'email' || currentMethod === 'both') {
-                if (!email || !password || !confirmPassword) {
-                    showAlert('Validation Error', 'Please fill all email fields');
-                    return;
-                }
-                if (password !== confirmPassword) {
-                    showAlert('Validation Error', 'Passwords do not match');
-                    return;
-                }
-            }
-
-            if (currentMethod === 'phone' || currentMethod === 'both') {
-                if (!phone) {
-                    showAlert('Validation Error', 'Please enter a phone number');
-                    return;
-                }
-            }
-
-            if (!termsChecked) {
-                showAlert('Validation Error', 'You must agree to the Terms and Conditions');
+            if (!email && !phone) {
+                alert("Please provide either an Email Address or a Phone Number to register.");
                 return;
             }
 
-            const formattedPhone = (currentMethod === 'phone' || currentMethod === 'both')
-                ? formatPhoneForFirebase(phone)
-                : phone;
-
-            pendingPayload = { fullName, email, phone: formattedPhone, password };
-            disableForm(true);
-
-            // --- EMAIL METHOD: Generate 6-digit code and send via EmailJS ---
-            if (currentMethod === 'email') {
-                currentOTP = generateOtp();
-                const sent = await sendOtpEmail(email, fullName, currentOTP);
-                if (sent) {
-                    otpMessage.textContent = `A 6-digit code was sent to ${email}`;
-                    showOtpModal(true);
-                } else {
-                    disableForm(false);
-                }
-            }
-            // --- PHONE METHOD: Call signInWithPhoneNumber and show OTP modal ---
-            else if (currentMethod === 'phone') {
-                try {
-                    const appVerifier = await ensureRecaptchaVerifier();
-                    confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-                    otpMessage.textContent = `A 6-digit code was sent to ${formattedPhone}`;
-                    showOtpModal(true);
-                } catch (err) {
-                    console.error('Phone sign-in error:', err);
-                    showAlert('Phone Error', `Unable to send code to phone: ${err.message}`);
-                    resetRecaptchaVerifier();
-                    disableForm(false);
-                }
-            }
-            // --- BOTH METHOD: Default to phone (call signInWithPhoneNumber) ---
-            else if (currentMethod === 'both') {
-                try {
-                    const appVerifier = await ensureRecaptchaVerifier();
-                    confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-                    otpMessage.textContent = `A 6-digit code was sent to ${formattedPhone}`;
-                    showOtpModal(true);
-                } catch (err) {
-                    console.error('Phone sign-in error (both mode):', err);
-                    showAlert('Phone Error', `Unable to send code to phone: ${err.message}`);
-                    resetRecaptchaVerifier();
-                    disableForm(false);
-                }
-            }
-        });
-
-        // ===== 4. MODAL CODE VALIDATION LOOP =====
-        confirmOtpBtn.addEventListener('click', async () => {
-            const entered = (otpInput.value || '').trim();
-            if (!entered || entered.length !== 6) {
-                showAlert('Invalid Code', 'Please enter the 6-digit verification code');
+            if (!password) {
+                alert('Please enter your password');
                 return;
             }
 
-            // --- EMAIL METHOD: Verify local code, then createUserWithEmailAndPassword ---
-            if (currentMethod === 'email') {
-                if (entered !== currentOTP) {
-                    showAlert('Invalid Code', 'The code you entered is incorrect.');
-                    return;
-                }
-                showOtpModal(false);
-                showToast('Verification successful. Creating your account...');
-                const user = await registerUser(pendingPayload);
-                if (!user) disableForm(false);
+            if (!termsAccepted) {
+                alert('You must agree to the Terms and Conditions');
+                return;
             }
-            // --- PHONE METHOD: Confirm phone OTP with confirmationResult ---
-            else if (currentMethod === 'phone') {
-                if (!confirmationResult) {
-                    showAlert('Error', 'Phone verification not initialized');
-                    return;
-                }
-                try {
-                    const userCred = await confirmationResult.confirm(entered);
-                    showOtpModal(false);
-                    showToast('Phone verified. Creating your account...');
-                    const user = await registerPhoneUser({
-                        fullName: pendingPayload.fullName,
-                        phone: pendingPayload.phone,
-                        userCredential: userCred
-                    });
-                    if (!user) disableForm(false);
-                } catch (err) {
-                    console.error('Phone confirmation error:', err);
-                    showAlert('Verification Error', `Invalid code or verification failed: ${err.message}`);
-                }
-            }
-            // --- BOTH METHOD: Confirm phone OTP and write Firestore with Email ---
-            else if (currentMethod === 'both') {
-                if (!confirmationResult) {
-                    showAlert('Error', 'Phone verification not initialized');
-                    return;
-                }
-                try {
-                    const userCred = await confirmationResult.confirm(entered);
-                    const uid = userCred.user.uid;
 
-                    // Write Firestore document with Name and Email linked to the authenticated user UID
-                    const profile = {
-                        fullName: pendingPayload.fullName,
-                        email: pendingPayload.email,
-                        phone: pendingPayload.phone,
-                        role: "user",
-                        profileImage: null,
-                        createdAt: new Date().toISOString(),
-                    };
-                    await setDoc(doc(db, "users", uid), profile);
-
-                    // Complete the flow
-                    showOtpModal(false);
-                    showToast('Account created successfully!');
-                    const user = { id: uid, ...profile };
-                    // Store user in localStorage (assuming setCurrentUser does this)
-                    window.setCurrentUser(user);
-                    window.location.href = "pages_dashboard.html";
-                } catch (err) {
-                    console.error('Both method confirmation error:', err);
-                    showAlert('Verification Error', `Invalid code or verification failed: ${err.message}`);
+            try {
+                // Determine the Auth routing credential
+                let authEmail = email;
+                if (!email && phone) {
+                    // If no email is provided, generate a clean custom dummy string for Firebase Auth
+                    authEmail = phone + "@e-lostandfound.local";
                 }
+
+                // Create user in Firebase Auth
+                const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
+
+                // Write clean document to Cloud Firestore
+                await setDoc(doc(db, "users", userCredential.user.uid), {
+                    fullName: fullName,
+                    email: email || "Not Provided",
+                    phone: phone || "Not Provided",
+                    password: password,
+                    role: "user",
+                    createdAt: new Date().toISOString()
+                });
+
+                // Redirect straight to pages_dashboard.html after saving
+                window.location.href = 'pages_dashboard.html';
+            } catch (error) {
+                alert('Registration Failed: ' + error.message);
             }
         });
 
-        resendOtpBtn.addEventListener('click', async () => {
-            if (!pendingPayload) return;
-
-            if (currentMethod === 'email') {
-                currentOTP = generateOtp();
-                const sent = await sendOtpEmail(pendingPayload.email, pendingPayload.fullName, currentOTP);
-                if (sent) showToast('A new OTP was sent to your email');
-            } else if (currentMethod === 'phone' || currentMethod === 'both') {
-                showAlert('Resend', 'Please request a new code by re-submitting the registration form');
-            }
-        });
-
-        cancelOtpBtn.addEventListener('click', () => {
-            pendingPayload = null;
-            currentOTP = null;
-            confirmationResult = null;
-            resetRecaptchaVerifier();
-            showOtpModal(false);
-            disableForm(false);
-        });
-
-        // Initialize with email method by default
-        regMethodSelect.dispatchEvent(new Event('change'));
+        if (togglePassword) {
+            togglePassword.addEventListener('click', () => {
+                passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
+                togglePassword.className = passwordInput.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+            });
+        }
     </script>
 </body>
 </html>

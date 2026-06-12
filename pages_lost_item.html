@@ -95,56 +95,104 @@
         </div>
     </div>
 
-    <script type="module" src="js_utils.js"></script>
-    <script type="module" src="js_auth.js"></script>
-    <script>
-        // Wait for modules to load before calling checkAuth
-        function ensureCheckAuth() {
-            if (typeof checkAuth === 'function') {
-                checkAuth();
-            } else {
-                setTimeout(ensureCheckAuth, 50);
-            }
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { addDoc, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDTrRVndMD7GBamuOf-sEGk9O2VXN41xK4",
+            authDomain: "e-lost-and-found-d7d2b.firebaseapp.com",
+            projectId: "e-lost-and-found-d7d2b",
+            storageBucket: "e-lost-and-found-d7d2b.appspot.com",
+            messagingSenderId: "285405475724",
+            appId: "1:285405475724:web:82707326f367d6e81c5ca9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let reportingUser = null;
+        let reportFormReady = false;
+
+        function convertImageToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
         }
-        ensureCheckAuth();
-        
-        document.getElementById('imageUpload').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const base64 = await convertImageToBase64(file);
-                document.getElementById('imagePreview').src = base64;
-                document.getElementById('imagePreview').style.display = 'block';
+
+        function showAlert(title, message) {
+            alert(`${title}: ${message}`);
+        }
+
+        function initializeReportPage() {
+            if (reportFormReady) return;
+            reportFormReady = true;
+
+            document.getElementById('imageUpload').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const base64 = await convertImageToBase64(file);
+                    document.getElementById('imagePreview').src = base64;
+                    document.getElementById('imagePreview').style.display = 'block';
+                }
+            });
+
+            document.getElementById('lostItemForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                if (!reportingUser) {
+                    showAlert('Error', 'Please login first');
+                    return;
+                }
+
+                const item = {
+                    itemName: document.getElementById('itemName').value,
+                    category: document.getElementById('category').value,
+                    description: document.getElementById('description').value,
+                    locationLost: document.getElementById('locationLost').value,
+                    dateLost: document.getElementById('dateLost').value,
+                    imageURL: document.getElementById('imagePreview').src || null,
+                    ownerId: reportingUser.uid,
+                    status: 'open',
+                    contactInfo: document.getElementById('contactInfo').value,
+                    createdAt: new Date().toISOString()
+                };
+
+                await addDoc(collection(db, 'lostItems'), item);
+                showAlert('Success', 'Lost item reported successfully!');
+                setTimeout(() => {
+                    window.location.assign('pages_dashboard.html');
+                }, 1500);
+            });
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                reportingUser = user;
+                console.log("Access granted for reporting profile UID:", user.uid);
+                // Page logic is safe to run here!
+                initializeReportPage();
+            } else {
+                console.log("No authorization token detected. Routing back to login layout page.");
+                window.location.href = "auth_login.html";
             }
         });
-        
-        document.getElementById('lostItemForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const user = getCurrentUser();
-            if (!user) {
-                showAlert('Error', 'Please login first');
-                return;
-            }
-            
-            const item = {
-                itemName: document.getElementById('itemName').value,
-                category: document.getElementById('category').value,
-                description: document.getElementById('description').value,
-                locationLost: document.getElementById('locationLost').value,
-                dateLost: document.getElementById('dateLost').value,
-                imageURL: document.getElementById('imagePreview').src || null,
-                ownerId: user.id,
-                status: 'open',
-                contactInfo: document.getElementById('contactInfo').value,
-                createdAt: new Date().toISOString()
-            };
-            
-            await addRecord(DB.lostItems, item);
-            showAlert('Success', 'Lost item reported successfully!');
-            setTimeout(() => {
-                window.location.href = 'pages_dashboard.html';
-            }, 1500);
-        });
+
+        window.logout = () => {
+            localStorage.removeItem('currentUser');
+            window.location.assign('index.html');
+        };
+
+        window.toggleDarkMode = () => {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+        };
     </script>
 </body>
 </html>
